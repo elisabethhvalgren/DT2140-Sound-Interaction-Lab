@@ -111,7 +111,7 @@ function playAudio() {
     if (audioContext.state !== "running") return;
 
     dspNode.setParamValue("/bubble/bubble/freq", 800);
-    dspNode.setParamValue("/bubble/bubble/volume", 0.7);
+    dspNode.setParamValue("/bubble/bubble/volume", 0.9);
 
     // TRIGGER
     dspNode.setParamValue("/bubble/drop", 1);
