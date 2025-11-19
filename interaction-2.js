@@ -10,6 +10,7 @@
 let dspNode = null;
 let dspNodeParams = null;
 let jsonParams = null;
+let isShaking = false; 
 
 // Change here to ("tuono") depending on your wasm file name
 const dspName = "rain";
@@ -72,10 +73,16 @@ function deviceTurned() {
     threshVals[1] = turnAxis;
 }
 function deviceShaken() {
-    shaketimer = millis();
-    statusLabels[0].style("color", "pink");
-    playAudio();
+    shaketimer = millis();                    // labbens timer uppdateras
+    statusLabels[0].style("color", "pink");   // som förut
+
+    if (!isRaining) {         // bara om regnet inte redan spelar
+        isRaining = true;
+        playAudio(true);      // starta regnljudet
+    }
 }
+
+
 
 function getMinMaxParam(address) {
     const exampleMinMaxParam = findByAddress(dspNodeParams, address);
@@ -95,23 +102,30 @@ function getMinMaxParam(address) {
 //
 //==========================================================================================
 
-async function playAudio() {
+async function playAudio(on) {
     if (!dspNode) return;
 
-    // säkerställ att ljudmotorn faktiskt är igång
     if (audioContext.state === 'suspended') {
         await audioContext.resume();
     }
 
-    // sätt en lagom regnvolym
+    // lagom volym
     dspNode.setParamValue("/complex_rain/volume", 0.7);
 
-    // öppna gate en kort stund när mobilen skakas
-    dspNode.setParamValue("/complex_rain/gate", 1);
-    setTimeout(() => {
-        dspNode.setParamValue("/complex_rain/gate", 0);
-    }, 500); // 0.5 s regn per shake – kan justeras
+    // on = true -> gate 1, on = false -> gate 0
+    dspNode.setParamValue("/complex_rain/gate", on ? 1 : 0);
 }
+
+setInterval(() => {
+    if (!isRaining) return;
+    if (typeof millis !== "function") return;
+
+    if (millis() - shaketimer > 600) {
+        isRaining = false;
+        playAudio(false);
+        statusLabels[0].style("color", "black");
+    }
+}, 100);
 
 
 //==========================================================================================
