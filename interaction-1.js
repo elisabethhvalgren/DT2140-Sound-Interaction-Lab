@@ -10,6 +10,7 @@
 let dspNode = null;
 let dspNodeParams = null;
 let jsonParams = null;
+let wasPointingUp = false; 
 
 // Change here to ("tuono") depending on your wasm file name
 const dspName = "bubble";
@@ -56,7 +57,17 @@ function accelerationChange(accx, accy, accz) {
 }
 
 function rotationChange(rotx, roty, rotz) {
+    // rotx ≈ -90° när mobilen pekar rakt upp (kan variera mellan enheter)
+    const isPointingUp = (rotx < -60 && rotx > -120);
+
+    // Trigga playAudio när vi går in i "uppåtriktad" zonen
+    if (isPointingUp && !wasPointingUp) {
+        playAudio();
+    }
+
+    wasPointingUp = isPointingUp;
 }
+
 
 function mousePressed() {
     //playAudio()
@@ -74,7 +85,7 @@ function deviceTurned() {
 function deviceShaken() {
     shaketimer = millis();
     statusLabels[0].style("color", "pink");
-    playAudio();
+    //playAudio();
 }
 
 function getMinMaxParam(address) {
@@ -97,18 +108,16 @@ function getMinMaxParam(address) {
 
 function playAudio() {
     if (!dspNode) return;
-    if (audioContext.state !== 'running') return;
+    if (audioContext.state !== "running") return;
 
-    // sätt valfri frekvens och volym
-    dspNode.setParamValue("/bubble/freq", 800);
-    dspNode.setParamValue("/bubble/volume", 0.7);
+    dspNode.setParamValue("/bubble/bubble/freq", 800);
+    dspNode.setParamValue("/bubble/bubble/volume", 0.7);
 
-    // trigga bubble-ljudet via "drop"-knappen
-    dspNode.setParamValue("/drop", 1);
-    setTimeout(() => {
-        dspNode.setParamValue("/drop", 0);
-    }, 50);
+    // TRIGGER
+    dspNode.setParamValue("/bubble/drop", 1);
+    setTimeout(() => dspNode.setParamValue("/bubble/drop", 0), 50);
 }
+
 
 
 //==========================================================================================
