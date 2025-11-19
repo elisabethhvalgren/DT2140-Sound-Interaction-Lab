@@ -1,18 +1,12 @@
 //==========================================================================================
 // AUDIO SETUP
-//------------------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------------------
-// Edit just where you're asked to!
-//------------------------------------------------------------------------------------------
-//
 //==========================================================================================
 let dspNode = null;
 let dspNodeParams = null;
 let jsonParams = null;
 
-// Change here to ("tuono") depending on your wasm file name
-const dspName = "brass";
+// Namnet måste matcha engine.wasm
+const dspName = "engine";
 const instance = new FaustWasm2ScriptProcessor(dspName);
 
 // output to window or npm package module
@@ -24,44 +18,37 @@ if (typeof module === "undefined") {
     module.exports = exp;
 }
 
-// The name should be the same as the WASM file, so change tuono with brass if you use brass.wasm
-brass.createDSP(audioContext, 1024)
+// Skapa DSP från engine.wasm
+engine.createDSP(audioContext, 1024)
     .then(node => {
         dspNode = node;
         dspNode.connect(audioContext.destination);
         console.log('params: ', dspNode.getParams());
         const jsonString = dspNode.getJSON();
         jsonParams = JSON.parse(jsonString)["ui"][0]["items"];
-        dspNodeParams = jsonParams
-        // const exampleMinMaxParam = findByAddress(dspNodeParams, "/thunder/rumble");
-        // // ALWAYS PAY ATTENTION TO MIN AND MAX, ELSE YOU MAY GET REALLY HIGH VOLUMES FROM YOUR SPEAKERS
-        // const [exampleMinValue, exampleMaxValue] = getParamMinMax(exampleMinMaxParam);
-        // console.log('Min value:', exampleMinValue, 'Max value:', exampleMaxValue);
+        dspNodeParams = jsonParams;
+
+        // (valfritt) sätt lite default-värden
+        dspNode.setParamValue("/engine/brushLevel", 0.9);
+        dspNode.setParamValue("/engine/rotorLevel", 0.6);
+        dspNode.setParamValue("/engine/statorLevel", 0.7);
+        dspNode.setParamValue("/engine/tubeRes", 0.2);
+        dspNode.setParamValue("/engine/runtime", 5.0);
+        dspNode.setParamValue("/engine/gate", 0);   // starta med motor av
+        dspNode.setParamValue("/engine/volume", 0.3);
     });
 
 
 //==========================================================================================
 // INTERACTIONS
-//------------------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------------------
-// Edit the next functions to create interactions
-// Decide which parameters you're using and then use playAudio to play the Audio
-//------------------------------------------------------------------------------------------
-//
 //==========================================================================================
 
 function accelerationChange(accx, accy, accz) {
-    // playAudio()
+    // valfri extra interaktion
 }
 
-function rotationChange(rotx, roty, rotz) {
-}
+let lastEngineActive = false; // minns om motorn var igång senast
 
-function mousePressed() {
-    playAudio(mouseX/windowWidth)
-    // Use this for debugging from the desktop!
-}
 
 function deviceMoved() {
     movetimer = millis();
@@ -70,41 +57,48 @@ function deviceMoved() {
 
 function deviceTurned() {
     threshVals[1] = turnAxis;
+    // Vrid telefonen (deviceTurned) -> starta motorn på ganska hög nivå
+    if (typeof turntimer !== 'undefined') {
+        turntimer = millis();
+    }
+    statusLabels[1].style("color", "pink");
+    playAudio(0.8);
 }
+
+
 function deviceShaken() {
     shaketimer = millis();
     statusLabels[0].style("color", "pink");
-    playAudio();
+    // Shaken används nu bara som visuell feedback, inte för att trigga ljud
 }
 
 function getMinMaxParam(address) {
     const exampleMinMaxParam = findByAddress(dspNodeParams, address);
-    // ALWAYS PAY ATTENTION TO MIN AND MAX, ELSE YOU MAY GET REALLY HIGH VOLUMES FROM YOUR SPEAKERS
     const [exampleMinValue, exampleMaxValue] = getParamMinMax(exampleMinMaxParam);
     console.log('Min value:', exampleMinValue, 'Max value:', exampleMaxValue);
-    return [exampleMinValue, exampleMaxValue]
+    return [exampleMinValue, exampleMaxValue];
 }
 
+
 //==========================================================================================
-// AUDIO INTERACTION
-//------------------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------------------
-// Edit here to define your audio controls 
-//------------------------------------------------------------------------------------------
-//
+// AUDIO INTERACTION – ENGINE
 //==========================================================================================
 
+// Allmän wrapper: styr motorn med ett "pressure" [0,1]
 function playAudio(pressure) {
-    if (!dspNode) {
-        return;
-    }
-    if (audioContext.state === 'suspended') {
-        return;
-    }
-    console.log(pressure)
-    dspNode.setParamValue("/brass/blower/pressure", pressure)
+    if (!dspNode) return;
+    if (audioContext.state === 'suspended') return;
+
+    const p = Math.max(0, Math.min(1, pressure)); // clamp 0..1
+
+    // Slå på motorn om vi har lite tryck
+    dspNode.setParamValue("/engine/gate", p > 0.05 ? 1 : 0);
+
+    // Koppla pressure till maxSpeed och volume
+    dspNode.setParamValue("/engine/maxSpeed", p);
+    dspNode.setParamValue("/engine/volume", 0.2 + 0.8 * p);
 }
+
 
 //==========================================================================================
 // END
