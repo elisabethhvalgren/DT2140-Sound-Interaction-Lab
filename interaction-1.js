@@ -12,6 +12,7 @@ let dspNodeParams = null;
 let jsonParams = null;
 let wasPointingUp = false; 
 
+
 // Change here to ("tuono") depending on your wasm file name
 const dspName = "bubble";
 const instance = new FaustWasm2ScriptProcessor(dspName);
